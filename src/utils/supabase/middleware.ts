@@ -8,7 +8,7 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // Make sure this is updated
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -33,7 +33,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/','/login', '/signup', '/auth', '/error']
+  const publicRoutes = ['/', '/login', '/signup', '/auth', '/error']
   const isPublicRoute = publicRoutes.some(route => 
     request.nextUrl.pathname.startsWith(route)
   )
@@ -45,13 +45,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is not authenticated and trying to access protected routes
-  if (!user && !isPublicRoute && request.nextUrl.pathname !== '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
   // If user is authenticated and on homepage, redirect to dashboard
   if (user && request.nextUrl.pathname === '/') {
     const url = request.nextUrl.clone()
@@ -59,5 +52,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // If user is not authenticated and trying to access protected routes
+  if (!user && !isPublicRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
   return supabaseResponse
 }
+
+
+
