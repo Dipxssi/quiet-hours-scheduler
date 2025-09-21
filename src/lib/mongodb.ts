@@ -1,51 +1,57 @@
-import { MongoClient, Db, Collection, ObjectId } from 'mongodb'
-
-if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
-}
-
-const uri = process.env.MONGODB_URI
-const options = {}
-
-let client: MongoClient
-let clientPromise: Promise<MongoClient>
-
-if (process.env.NODE_ENV === 'development') {
-  let globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>
-  }
-
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options)
-    globalWithMongo._mongoClientPromise = client.connect()
-  }
-  clientPromise = globalWithMongo._mongoClientPromise
-} else {
-  client = new MongoClient(uri, options)
-  clientPromise = client.connect()
-}
-
-export default clientPromise
+import { MongoClient, Db, Collection } from 'mongodb'
 
 export interface StudyBlock {
-  _id?: ObjectId
+  _id?: string
   user_id: string
   title: string
-  description?: string
+  description?: string | null
   start_time: Date
   end_time: Date
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
+  notification_sent: boolean
   created_at: Date
   updated_at: Date
-  notification_sent: boolean
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
 }
 
-export async function getDatabase(): Promise<Db> {
-  const client = await clientPromise
-  return client.db('quiet-hours')
+let client: MongoClient
+let db: Db
+
+if (!global._mongoClientPromise) {
+  if (!process.env.MONGODB_URI) {
+    throw new Error('Please add your MongoDB URI to .env.local')
+  }
+
+  client = new MongoClient(process.env.MONGODB_URI)
+  global._mongoClientPromise = client.connect()
+}
+
+async function connectToDatabase() {
+  try {
+    const client = await global._mongoClientPromise
+    
+    // Extract database name from URI or use default
+    const uri = process.env.MONGODB_URI!
+    const dbName = uri.split('/')[3]?.split('?')[0] || 'quiet-hours-scheduler'
+    
+    db = client.db(dbName)
+    console.log(` Connected to MongoDB database: ${dbName}`)
+    
+    return db
+  } catch (error) {
+    console.error(' MongoDB connection failed:', error)
+    throw error
+  }
 }
 
 export async function getStudyBlocksCollection(): Promise<Collection<StudyBlock>> {
-  const db = await getDatabase()
+  if (!db) {
+    await connectToDatabase()
+  }
+  
   return db.collection<StudyBlock>('study_blocks')
+}
+
+// For TypeScript global augmentation
+declare global {
+  var _mongoClientPromise: Promise<MongoClient>
 }
