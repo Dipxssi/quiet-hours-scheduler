@@ -1,7 +1,7 @@
-import { MongoClient, Db, Collection } from 'mongodb'
+import { MongoClient, Db, Collection, ObjectId } from 'mongodb'
 
 export interface StudyBlock {
-  _id?: string
+  _id?: ObjectId
   user_id: string
   title: string
   description?: string | null
