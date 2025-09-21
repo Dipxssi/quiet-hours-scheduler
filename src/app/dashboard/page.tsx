@@ -1,39 +1,64 @@
-import { createClient } from '@/utils/supabase/server'
-import { getStudyBlocksCollection } from '@/lib/mongodb'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/utils/supabase/client' // Changed from server to client
 import Link from 'next/link'
 import StudyBlockCard from './components/StudyBlockCard'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+interface StudyBlock {
+  _id: string
+  title: string
+  description?: string
+  start_time: string
+  end_time: string
+  notification_sent: boolean
+  status: string
+}
 
-  if (!user) {
-    return <div>Not authenticated</div>
+export default function DashboardPage() {
+  const [blocks, setBlocks] = useState<StudyBlock[]>([])
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get user info (using CLIENT supabase)
+        const supabase = createClient() // No await needed for client
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
+
+        // Fetch study blocks
+        const response = await fetch('/api/study-blocks')
+        const data = await response.json()
+        
+        if (response.ok) {
+          setBlocks(data.blocks || [])
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    )
   }
 
-  // Fetch user's study blocks from MongoDB
-  const collection = await getStudyBlocksCollection()
-  const studyBlocks = await collection
-    .find({ user_id: user.id })
-    .sort({ start_time: 1 })
-    .toArray()
-
-  // Convert MongoDB documents for client components
-  const blocksData = studyBlocks.map(block => ({
-    ...block,
-    _id: block._id.toString(),
-    start_time: block.start_time.toISOString(),
-    end_time: block.end_time.toISOString(),
-    created_at: block.created_at.toISOString(),
-    updated_at: block.updated_at.toISOString(),
-  }))
-
   const now = new Date()
-  const upcomingBlocks = blocksData.filter(block => new Date(block.start_time) > now)
-  const pastBlocks = blocksData.filter(block => new Date(block.end_time) <= now)
-  const activeBlocks = blocksData.filter(block => 
+  const upcomingBlocks = blocks.filter(block => new Date(block.start_time) > now)
+  const activeBlocks = blocks.filter(block => 
     new Date(block.start_time) <= now && new Date(block.end_time) > now
   )
+  const pastBlocks = blocks.filter(block => new Date(block.end_time) <= now)
 
   return (
     <div className="space-y-6">
@@ -42,7 +67,7 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {user.email?.split('@')[0]}!
+              Welcome back, {user?.email?.split('@')[0]}! 
             </h1>
             <p className="mt-1 text-gray-500">
               Manage your focused study sessions
@@ -121,7 +146,7 @@ export default async function DashboardPage() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
-                  <span className="text-white font-bold">{blocksData.length}</span>
+                  <span className="text-white font-bold">{blocks.length}</span>
                 </div>
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -139,7 +164,7 @@ export default async function DashboardPage() {
       {/* Active Sessions */}
       {activeBlocks.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">🟢 Active Sessions</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Active Sessions</h2>
           <div className="grid gap-4">
             {activeBlocks.map((block) => (
               <StudyBlockCard key={block._id} block={block} status="active" />
@@ -151,7 +176,7 @@ export default async function DashboardPage() {
       {/* Upcoming Sessions */}
       {upcomingBlocks.length > 0 ? (
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">📅 Upcoming Sessions</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Upcoming Sessions</h2>
           <div className="grid gap-4">
             {upcomingBlocks.slice(0, 5).map((block) => (
               <StudyBlockCard key={block._id} block={block} status="upcoming" />
@@ -185,7 +210,7 @@ export default async function DashboardPage() {
       {/* Recent Completed Sessions */}
       {pastBlocks.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">✅ Recently Completed</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Recently Completed</h2>
           <div className="grid gap-4">
             {pastBlocks.slice(-3).reverse().map((block) => (
               <StudyBlockCard key={block._id} block={block} status="completed" />
