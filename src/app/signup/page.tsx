@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -20,6 +20,7 @@ export default function SignupPage() {
     setMessage('')
 
     try {
+      const supabase = createClient()
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -29,10 +30,8 @@ export default function SignupPage() {
 
       if (data.user) {
         if (data.user.email_confirmed_at) {
-          // Email is confirmed, redirect to dashboard
           router.push('/dashboard')
         } else {
-          // Email confirmation needed
           setMessage('Check your email for the confirmation link!')
         }
       }
@@ -71,6 +70,7 @@ export default function SignupPage() {
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                suppressHydrationWarning={true}
               />
             </div>
             <div>
@@ -88,6 +88,7 @@ export default function SignupPage() {
                 placeholder="Password (6+ characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                suppressHydrationWarning={true}
               />
             </div>
           </div>
