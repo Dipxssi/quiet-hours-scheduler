@@ -9,13 +9,9 @@ export default function LoginPage() {
 
   const handleSubmit = async (formData: FormData) => {
     setLoading(true)
-    try {
-      await login(formData)
-    } catch (error) {
-      console.error('Login error:', error)
-    } finally {
-      setLoading(false)
-    }
+    await login(formData)
+    setLoading(false)
+    
   }
 
   return (
@@ -77,7 +73,7 @@ export default function LoginPage() {
               href="/signup" 
               className="text-indigo-600 hover:text-indigo-500"
             >
-              Don't have an account? Sign up
+              Don&apos;t have an account? Sign up
             </Link>
           </div>
         </form>
